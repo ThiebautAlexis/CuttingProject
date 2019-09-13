@@ -108,6 +108,7 @@ public static class CUT_CuttingHelper
         float _distance = 0;
 
         _cuttingPlane.Raycast(new Ray(_leftMeshTriangle.Vertices[0], (_rightMeshTriangle.Vertices[0] - _leftMeshTriangle.Vertices[0]).normalized), out _distance);
+
         _normalizedDistance = _distance / (_rightMeshTriangle.Vertices[0] - _leftMeshTriangle.Vertices[0]).magnitude;
         Vector3 _vertexLeft = Vector3.Lerp(_leftMeshTriangle.Vertices[0], _rightMeshTriangle.Vertices[0], _normalizedDistance);
         _addedVertices.Add(_vertexLeft);
@@ -115,9 +116,10 @@ public static class CUT_CuttingHelper
         Vector2 _uvLeft = Vector2.Lerp(_leftMeshTriangle.UVs[0], _rightMeshTriangle.UVs[0], _normalizedDistance);
 
         _cuttingPlane.Raycast(new Ray(_leftMeshTriangle.Vertices[1], (_rightMeshTriangle.Vertices[1] - _leftMeshTriangle.Vertices[1]).normalized), out _distance);
+
         _normalizedDistance = _distance / (_rightMeshTriangle.Vertices[1] - _leftMeshTriangle.Vertices[1]).magnitude;
         Vector3 _vertexRight = Vector3.Lerp(_leftMeshTriangle.Vertices[1], _rightMeshTriangle.Vertices[1], _normalizedDistance);
-        _addedVertices.Add(_vertexLeft);
+        _addedVertices.Add(_vertexRight);
         Vector3 _normalRight = Vector3.Lerp(_leftMeshTriangle.Normals[1], _rightMeshTriangle.Normals[1], _normalizedDistance);
         Vector2 _uvRight = Vector2.Lerp(_leftMeshTriangle.UVs[1], _rightMeshTriangle.UVs[1], _normalizedDistance);
 
@@ -163,6 +165,100 @@ public static class CUT_CuttingHelper
         _triangle.Vertices[2] = _invertedVertex;
         _triangle.Normals[2] = _invertedNormal;
         _triangle.UVs[2] = _invertedUv;
+    }
+
+    public static void FillCut(List<Vector3> _addedVertices, Plane _cuttingPlane, CUT_GeneratedMesh _leftMesh, CUT_GeneratedMesh _rightMesh)
+    {
+        List<Vector3> _vertices = new List<Vector3>();
+        List<Vector3> _polygone = new List<Vector3>();
+
+        for (int i = 0; i < _addedVertices.Count; i++)
+        {
+            if(!_vertices.Contains(_addedVertices[i]))
+            {
+                _polygone.Clear();
+                _polygone.Add(_addedVertices[i]);
+                _polygone.Add(_addedVertices[i + 1]);
+
+                _vertices.Add(_addedVertices[i]);
+                _vertices.Add(_addedVertices[i + 1]);
+
+                EvaluatePairs(_addedVertices, _vertices, _polygone);
+                Fill(_polygone, _cuttingPlane, _leftMesh, _rightMesh); 
+
+            }
+        }
+    }
+
+    private static void EvaluatePairs(List<Vector3> _addedVertices, List<Vector3> _vertices, List<Vector3> _polygone)
+    {
+        for (int i = 0; i < _addedVertices.Count; i+=2)
+        {
+            if (_addedVertices[i] == _polygone[_polygone.Count - 1] && !_vertices.Contains(_addedVertices[i+1]))
+            {
+                _polygone.Add(_addedVertices[i + 1]);
+                _vertices.Add(_addedVertices[i + 1]);
+                continue; 
+            }
+            else if (_addedVertices[i + 1] == _polygone[_polygone.Count - 1] && !_vertices.Contains(_addedVertices[i]))
+            {
+                _polygone.Add(_addedVertices[i]);
+                _vertices.Add(_addedVertices[i]);
+                continue;
+            }
+        }
+    }
+
+    private static void Fill(List<Vector3> _vertices, Plane _cuttingPlane, CUT_GeneratedMesh _leftMesh, CUT_GeneratedMesh _rightMesh)
+    {
+        Vector3 _centerPosition = Vector3.zero;
+        for (int i = 0; i < _vertices.Count; i++)
+        {
+            _centerPosition += _vertices[i]; 
+        }
+        _centerPosition = _centerPosition/_vertices.Count;
+
+        Vector3 _up = new Vector3(_cuttingPlane.normal.x, _cuttingPlane.normal.y, _cuttingPlane.normal.z);
+        Vector3 _left = Vector3.Cross(_cuttingPlane.normal, _cuttingPlane.normal);
+
+        Vector3 _displacement = Vector3.zero;
+        Vector2 _uv1 = Vector2.zero;
+        Vector2 _uv2 = Vector2.zero;
+        Vector3[] _newVertices = null; 
+        Vector3[] _normals = null;
+        Vector2[] _uvs = null;
+
+        CUT_MeshTriangle _currentTriangle = null; 
+
+        for (int i = 0; i < _vertices.Count; i++)
+        {
+            _displacement = _vertices[i] - _centerPosition;
+            _uv1 = new Vector2(.5f + Vector3.Dot(_displacement, _left), .5f + Vector3.Dot(_displacement, _up));
+
+            _displacement = _vertices[(i + 1) % _vertices.Count] - _centerPosition;
+            _uv2 = new Vector2(.5f + Vector3.Dot(_displacement, _left), .5f + Vector3.Dot(_displacement, _up));
+
+            _newVertices = new Vector3[] { _vertices[i], _vertices[(i + 1) % _vertices.Count], _centerPosition };
+            _normals = new Vector3[] { -_cuttingPlane.normal, -_cuttingPlane.normal, -_cuttingPlane.normal };
+            _uvs = new Vector2[] { _uv1, _uv2, Vector2.one / 2 };
+
+            _currentTriangle = new CUT_MeshTriangle(_newVertices, _normals, _uvs, _leftMesh.SubmeshIndices.Count - 1); 
+
+            if(Vector3.Dot(Vector3.Cross(_newVertices[1] - _newVertices[0], _newVertices[2] - _newVertices[0]), _normals[0]) <0)
+            {
+                FlipTriangle(_currentTriangle); 
+            }
+            _leftMesh.AddTriangle(_currentTriangle);
+
+            _normals = new Vector3[] { _cuttingPlane.normal, _cuttingPlane.normal, _cuttingPlane.normal };
+            _currentTriangle = new CUT_MeshTriangle(_newVertices, _normals, _uvs, _rightMesh.SubmeshIndices.Count - 1);
+
+            if (Vector3.Dot(Vector3.Cross(_newVertices[1] - _newVertices[0], _newVertices[2] - _newVertices[0]), _normals[0]) < 0)
+            {
+                FlipTriangle(_currentTriangle);
+            }
+            _rightMesh.AddTriangle(_currentTriangle);
+        }
     }
     #endregion
 

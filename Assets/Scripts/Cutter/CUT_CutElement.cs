@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq; 
 using UnityEngine;
 
 [RequireComponent(typeof(BoxCollider), typeof(Rigidbody), typeof(MeshFilter))]
@@ -91,6 +92,8 @@ public class CUT_CutElement : MonoBehaviour
                 }
             }
         }
+
+        CUT_CuttingHelper.FillCut(_addedVertices, _cuttingPlane, _leftMesh, _rightMesh); 
         Mesh _newMesh = new Mesh();
         _newMesh.SetVertices(_leftMesh.Vertices);
         _newMesh.SetNormals(_leftMesh.Normals);
@@ -100,8 +103,7 @@ public class CUT_CutElement : MonoBehaviour
             _newMesh.SetTriangles(_leftMesh.SubmeshIndices[i], i); 
         }
 
-        SetNewMesh(_newMesh); 
-
+        SetNewMesh(_newMesh);
         _newMesh = new Mesh();
         _newMesh.SetVertices(_rightMesh.Vertices);
         _newMesh.SetNormals(_rightMesh.Normals);
@@ -111,17 +113,25 @@ public class CUT_CutElement : MonoBehaviour
             _newMesh.SetTriangles(_rightMesh.SubmeshIndices[i], i);
         }
 
-        new GameObject().AddComponent<CUT_CutElement>().SetNewMesh(_newMesh);
-
+        CUT_CutElement _elem = new GameObject().AddComponent<CUT_CutElement>();
+        _elem.transform.position += new Vector3(0, 0, 1.5f); 
+        _elem.SetNewMesh(_newMesh);
+        _elem.SetMaterial(GetComponent<MeshRenderer>().material); 
+        _elem.GetComponent<BoxCollider>().isTrigger = false;
     }
 
     public void SetNewMesh(Mesh _newMesh)
     {
-        m_collider.enabled = false; 
         if (!GetComponent<MeshRenderer>()) gameObject.AddComponent<MeshRenderer>();
         m_originalMesh = _newMesh; 
         GetComponent<MeshFilter>().mesh = m_originalMesh;
         GetComponent<MeshFilter>().sharedMesh = m_originalMesh;
+    }
+
+    public void SetMaterial(Material _m)
+    {
+        if (!GetComponent<MeshRenderer>()) gameObject.AddComponent<MeshRenderer>();
+        GetComponent<MeshRenderer>().material = _m; 
     }
     #endregion
 
@@ -134,7 +144,7 @@ public class CUT_CutElement : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        PrepareCut(other.transform.right, new Vector3(0 ,.5f, 0)  ); 
+        PrepareCut(other.transform.right, transform.position + (Vector3.up * .5f)); 
     }
 
     private void OnDrawGizmos()
