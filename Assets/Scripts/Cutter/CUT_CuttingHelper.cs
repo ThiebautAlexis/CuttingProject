@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq; 
 using UnityEngine;
 
 public static class CUT_CuttingHelper
@@ -123,6 +124,7 @@ public static class CUT_CuttingHelper
         Vector3 _normalRight = Vector3.Lerp(_leftMeshTriangle.Normals[1], _rightMeshTriangle.Normals[1], _normalizedDistance);
         Vector2 _uvRight = Vector2.Lerp(_leftMeshTriangle.UVs[1], _rightMeshTriangle.UVs[1], _normalizedDistance);
 
+        #region LEFT
         Vector3[] updatedVertices = new Vector3[] { _leftMeshTriangle.Vertices[0], _vertexLeft, _vertexRight };
         Vector3[] updatedNormals = new Vector3[] { _leftMeshTriangle.Normals[0], _normalLeft, _normalRight };
         Vector2[] updatedUVs = new Vector2[] { _leftMeshTriangle.UVs[0], _uvLeft, _uvRight };
@@ -150,6 +152,38 @@ public static class CUT_CuttingHelper
             }
             _leftSide.AddTriangle(_currentTriangle);
         }
+        #endregion
+
+        #region Right
+        /// RIGHT
+        updatedVertices = new Vector3[] { _rightMeshTriangle.Vertices[0], _vertexLeft, _vertexRight };
+        updatedNormals = new Vector3[] { _rightMeshTriangle.Normals[0], _normalLeft, _normalRight };
+        updatedUVs = new Vector2[] { _rightMeshTriangle.UVs[0], _uvLeft, _uvRight };
+        _currentTriangle = new CUT_MeshTriangle(updatedVertices, updatedNormals, updatedUVs, _triangle.SubmeshIndex);
+
+        if (updatedVertices[0] != updatedVertices[1] && updatedVertices[0] != updatedVertices[2])
+        {
+            if (Vector3.Dot(Vector3.Cross(updatedVertices[1] - updatedVertices[0], updatedVertices[2] - updatedVertices[0]), updatedNormals[0]) < 0)
+            {
+                FlipTriangle(_currentTriangle);
+            }
+            _rightSide.AddTriangle(_currentTriangle);
+        }
+
+        updatedVertices = new Vector3[] { _rightMeshTriangle.Vertices[0], _rightMeshTriangle.Vertices[1], _vertexRight };
+        updatedNormals = new Vector3[] { _rightMeshTriangle.Normals[0], _rightMeshTriangle.Normals[1], _normalRight };
+        updatedUVs = new Vector2[] { _rightMeshTriangle.UVs[0], _rightMeshTriangle.UVs[1], _uvRight };
+        _currentTriangle = new CUT_MeshTriangle(updatedVertices, updatedNormals, updatedUVs, _triangle.SubmeshIndex);
+
+        if (updatedVertices[0] != updatedVertices[1] && updatedVertices[0] != updatedVertices[2])
+        {
+            if (Vector3.Dot(Vector3.Cross(updatedVertices[1] - updatedVertices[0], updatedVertices[2] - updatedVertices[0]), updatedNormals[0]) < 0)
+            {
+                FlipTriangle(_currentTriangle);
+            }
+            _rightSide.AddTriangle(_currentTriangle);
+        }
+        #endregion 
     }
 
     private static void FlipTriangle(CUT_MeshTriangle _triangle)
@@ -171,10 +205,9 @@ public static class CUT_CuttingHelper
     {
         List<Vector3> _vertices = new List<Vector3>();
         List<Vector3> _polygone = new List<Vector3>();
-
-        for (int i = 0; i < _addedVertices.Count; i++)
+        for (int i = 0; i < _addedVertices.Count ; i++)
         {
-            if(!_vertices.Contains(_addedVertices[i]))
+            if (!_vertices.Contains(_addedVertices[i]))
             {
                 _polygone.Clear();
                 _polygone.Add(_addedVertices[i]);
@@ -183,28 +216,28 @@ public static class CUT_CuttingHelper
                 _vertices.Add(_addedVertices[i]);
                 _vertices.Add(_addedVertices[i + 1]);
 
-                EvaluatePairs(_addedVertices, _vertices, _polygone);
-                Fill(_polygone, _cuttingPlane, _leftMesh, _rightMesh); 
 
+                EvaluatePairs(_addedVertices, _vertices, _polygone);
+                Fill(_polygone, _cuttingPlane, _leftMesh, _rightMesh);
             }
         }
     }
 
     private static void EvaluatePairs(List<Vector3> _addedVertices, List<Vector3> _vertices, List<Vector3> _polygone)
     {
-        for (int i = 0; i < _addedVertices.Count; i+=2)
+        for (int i = 0; i < _addedVertices.Count; i += 2)
         {
-            if (_addedVertices[i] == _polygone[_polygone.Count - 1] && !_vertices.Contains(_addedVertices[i+1]))
+            if (_addedVertices[i] == _polygone[_polygone.Count - 1] && !_vertices.Contains(_addedVertices[i + 1]))
             {
                 _polygone.Add(_addedVertices[i + 1]);
                 _vertices.Add(_addedVertices[i + 1]);
-                continue; 
+                i = 0; 
             }
             else if (_addedVertices[i + 1] == _polygone[_polygone.Count - 1] && !_vertices.Contains(_addedVertices[i]))
             {
                 _polygone.Add(_addedVertices[i]);
                 _vertices.Add(_addedVertices[i]);
-                continue;
+                i = 0; 
             }
         }
     }

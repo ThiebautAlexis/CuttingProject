@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq; 
 using UnityEngine;
 
-[RequireComponent(typeof(BoxCollider), typeof(Rigidbody), typeof(MeshFilter))]
+[RequireComponent(typeof(Collider), typeof(Rigidbody), typeof(MeshFilter))]
 public class CUT_CutElement : MonoBehaviour 
 {
     /* CUT_CutElement :
@@ -104,20 +104,7 @@ public class CUT_CutElement : MonoBehaviour
         }
 
         SetNewMesh(_newMesh);
-        _newMesh = new Mesh();
-        _newMesh.SetVertices(_rightMesh.Vertices);
-        _newMesh.SetNormals(_rightMesh.Normals);
-        _newMesh.SetUVs(0, _rightMesh.UVs);
-        for (int i = 0; i < _rightMesh.SubmeshIndices.Count; i++)
-        {
-            _newMesh.SetTriangles(_rightMesh.SubmeshIndices[i], i);
-        }
-
-        CUT_CutElement _elem = new GameObject().AddComponent<CUT_CutElement>();
-        _elem.transform.position += new Vector3(0, 0, 1.5f); 
-        _elem.SetNewMesh(_newMesh);
-        _elem.SetMaterial(GetComponent<MeshRenderer>().material); 
-        _elem.GetComponent<BoxCollider>().isTrigger = false;
+        m_isCurrentlyCut = false; 
     }
 
     public void SetNewMesh(Mesh _newMesh)
@@ -144,19 +131,14 @@ public class CUT_CutElement : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        PrepareCut(other.transform.right, transform.position + (Vector3.up * .5f)); 
-    }
 
-    private void OnDrawGizmos()
-    {
-        if (!m_originalMesh) return; 
-        for (int i = 0; i < m_originalMesh.vertexCount; i++)
+        Vector3 _cuttingPos = transform.position;
+        RaycastHit _hitInfo; 
+        if(Physics.Raycast(new Ray(other.transform.position, transform.position - other.transform.position), out _hitInfo))
         {
-            Gizmos.color = Color.green;
-            Gizmos.DrawSphere(m_originalMesh.vertices[i], .1f);
-            Gizmos.color = Color.red;
-            Gizmos.DrawSphere(m_originalMesh.normals[i], .1f);
+            _cuttingPos = _hitInfo.point; 
         }
+        PrepareCut(other.transform.right, _cuttingPos); 
     }
     #endregion
 
