@@ -46,8 +46,8 @@ public class CUT_CutElement : MonoBehaviour
     [SerializeField] private MeshFilter m_meshFilter = null;
     [SerializeField] private MeshCollider m_meshCollider = null;
 
-    private CUT_GeneratedMesh m_leftMesh = null;
-    private CUT_GeneratedMesh m_rightMesh = null; 
+    private CUT_GeneratedMesh m_keptMesh = null;
+    private CUT_GeneratedMesh m_removedMesh = null; 
     #endregion
 
     #region Methods
@@ -98,30 +98,30 @@ public class CUT_CutElement : MonoBehaviour
         }
 
         CUT_CuttingHelper.FillCut(_addedVertices, _cuttingPlane, _leftMesh, _rightMesh);
-        m_leftMesh = _leftMesh;
-        m_rightMesh = _rightMesh; 
+        m_keptMesh = _leftMesh;
+        m_removedMesh = _rightMesh; 
     }
 
     public void Cut()
     {
         //SET THE NEW MESH
         Mesh _newMesh = new Mesh();
-        _newMesh.SetVertices(m_leftMesh.Vertices);
-        _newMesh.SetNormals(m_leftMesh.Normals);
-        _newMesh.SetUVs(0, m_leftMesh.UVs);
-        for (int i = 0; i < m_leftMesh.SubmeshIndices.Count; i++)
+        _newMesh.SetVertices(m_keptMesh.Vertices);
+        _newMesh.SetNormals(m_keptMesh.Normals);
+        _newMesh.SetUVs(0, m_keptMesh.UVs);
+        for (int i = 0; i < m_keptMesh.SubmeshIndices.Count; i++)
         {
-            _newMesh.SetTriangles(m_leftMesh.SubmeshIndices[i], i);
+            _newMesh.SetTriangles(m_keptMesh.SubmeshIndices[i], i);
         }
         SetNewMesh(_newMesh);
         //INSTANTIATE A PARTICLE TO MAKE THE OTHER PART FALL
         _newMesh = new Mesh();
-        _newMesh.SetVertices(m_rightMesh.Vertices);
-        _newMesh.SetNormals(m_rightMesh.Normals);
-        _newMesh.SetUVs(0, m_rightMesh.UVs);
-        for (int i = 0; i < m_rightMesh.SubmeshIndices.Count; i++)
+        _newMesh.SetVertices(m_removedMesh.Vertices);
+        _newMesh.SetNormals(m_removedMesh.Normals);
+        _newMesh.SetUVs(0, m_removedMesh.UVs);
+        for (int i = 0; i < m_removedMesh.SubmeshIndices.Count; i++)
         {
-            _newMesh.SetTriangles(m_rightMesh.SubmeshIndices[i], i);
+            _newMesh.SetTriangles(m_removedMesh.SubmeshIndices[i], i);
         }
         GameObject _particle = Resources.Load("CuttingParticleSystem") as GameObject; 
         ParticleSystemRenderer _renderer = _particle.GetComponent<ParticleSystemRenderer>();
@@ -131,8 +131,8 @@ public class CUT_CutElement : MonoBehaviour
         Vector3 _pos = transform.position;
         Instantiate(_particle, _pos, Quaternion.identity); 
         // NULLIFY THE LEFT AND RIGHT MESH 
-        m_leftMesh = null;
-        m_rightMesh = null;
+        m_keptMesh = null;
+        m_removedMesh = null;
 
         m_isCurrentlyCut = false; 
     }
