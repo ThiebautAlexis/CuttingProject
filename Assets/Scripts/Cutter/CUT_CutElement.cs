@@ -53,54 +53,6 @@ public class CUT_CutElement : MonoBehaviour
     #region Methods
 
     #region Original Methods
-    public void PrepareCut(Vector3 _normal, Vector3 _contactPoint)
-    {
-        if (m_isCurrentlyCut) return;
-        m_isCurrentlyCut = true;
-        Plane _cuttingPlane = new Plane(transform.InverseTransformDirection(_normal.normalized), transform.InverseTransformPoint(_contactPoint));
-        Debug.DrawLine(Vector3.zero, _cuttingPlane.normal, Color.blue, 200);
-
-        List<Vector3> _addedVertices = new List<Vector3>();
-
-        CUT_GeneratedMesh _leftMesh = new CUT_GeneratedMesh();
-        CUT_GeneratedMesh _rightMesh = new CUT_GeneratedMesh();
-        int[] _submeshIndices;
-        int _triangleIndexA, _triangleIndexB, _triangleIndexC;
-        bool _triangleALeftSide, _triangleBLeftSide, _triangleCLeftSide; 
-        for (int i = 0; i < m_originalMesh.subMeshCount; i++)
-        {
-            _submeshIndices = m_originalMesh.GetTriangles(i);
-
-            for (int j = 0; j < _submeshIndices.Length; j+=3)
-            {
-                _triangleIndexA = _submeshIndices[j]; 
-                _triangleIndexB = _submeshIndices[j + 1];
-                _triangleIndexC = _submeshIndices[j + 2];
-
-                CUT_MeshTriangle _currentTriangle =  CUT_CuttingHelper.GetTriangle(_triangleIndexA, _triangleIndexB, _triangleIndexC, i, m_originalMesh);
-                _triangleALeftSide = _cuttingPlane.GetSide(m_originalMesh.vertices[_triangleIndexA]);
-                _triangleBLeftSide = _cuttingPlane.GetSide(m_originalMesh.vertices[_triangleIndexB]);
-                _triangleCLeftSide = _cuttingPlane.GetSide(m_originalMesh.vertices[_triangleIndexC]);
-
-                if(_triangleALeftSide && _triangleBLeftSide && _triangleCLeftSide )
-                {
-                    _leftMesh.AddTriangle(_currentTriangle);
-                }
-                else if(!_triangleALeftSide && !_triangleBLeftSide && !_triangleCLeftSide)
-                {
-                    _rightMesh.AddTriangle(_currentTriangle);
-                }
-                else
-                {
-                    CUT_CuttingHelper.CutTriangle(_cuttingPlane, _currentTriangle, _triangleALeftSide, _triangleBLeftSide, _triangleCLeftSide, _leftMesh, _rightMesh, _addedVertices) ; 
-                }
-            }
-        }
-
-        CUT_CuttingHelper.FillCut(_addedVertices, _cuttingPlane, _leftMesh, _rightMesh);
-        m_keptMesh = _leftMesh;
-        m_removedMesh = _rightMesh; 
-    }
 
     public void Cut()
     {
@@ -168,7 +120,6 @@ public class CUT_CutElement : MonoBehaviour
         {
             _cuttingPos = _hitInfo.point; 
         }
-        PrepareCut(other.transform.right, _cuttingPos); 
     }
     #endregion
 

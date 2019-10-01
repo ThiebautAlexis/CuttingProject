@@ -38,35 +38,56 @@ public class CUT_Cutter : MonoBehaviour
     #endregion
 
     #region Fields / Properties
-    private CUT_CutElement m_cutElementCurrent = null; 
+    private CUT_GeneratedMesh m_meshOne = null;
+    private CUT_GeneratedMesh m_meshTwo = null;
+    private Collider m_currentlyCut = null;
+
+    private bool m_canApplyCut = false; 
     #endregion
 
     #region Methods
 
     #region Original Methods
+    private void StartCut(Collider _cutCollider)
+    {
+        RaycastHit _hitInfo;
+        if (Physics.Raycast(new Ray(transform.position, transform.up), out _hitInfo))
+        {
+            m_canApplyCut = false;
+            m_currentlyCut = _cutCollider;
+            m_canApplyCut = CUT_CuttingHelper.PrepareCut(-transform.right, _hitInfo.point, _cutCollider.gameObject.transform, _cutCollider.GetComponent<MeshFilter>().mesh, out m_meshOne, out m_meshTwo);
+            Debug.Log(m_canApplyCut);
+        }
+    }
 
+    private IEnumerator WaitingForCutPreparation()
+    {
+        while (!m_canApplyCut && m_currentlyCut != null)
+        {
+            yield return null; 
+        }
+        CUT_CuttingHelper.ApplyCut(m_currentlyCut.GetComponent<MeshRenderer>(), m_meshOne, m_meshTwo);
+        m_meshTwo = null;
+        m_meshTwo = null;
+        m_currentlyCut = null;
+    }
     #endregion
 
     #region Unity Methods
     private void OnTriggerEnter(Collider other)
     {
-        if(other.GetComponent<CUT_CutElement>())
+        if (m_currentlyCut != null) return; 
+        if(other.GetComponent<MeshRenderer>() && other.GetComponent<MeshFilter>())
         {
-            m_cutElementCurrent = other.GetComponent<CUT_CutElement>();
-            RaycastHit _hitInfo; 
-            if(Physics.Raycast(new Ray(transform.position, transform.up), out _hitInfo))
-            {
-                m_cutElementCurrent.PrepareCut(-transform.right, _hitInfo.point); 
-            }
+            StartCut(other); 
         }
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if(m_cutElementCurrent != null)
+        if(other == m_currentlyCut)
         {
-            m_cutElementCurrent.Cut();
-            m_cutElementCurrent = null; 
+            StartCoroutine(WaitingForCutPreparation()); 
         }
     }
     #endregion

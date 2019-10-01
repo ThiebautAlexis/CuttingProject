@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq; 
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public static class CUT_CuttingHelper
@@ -38,7 +35,7 @@ public static class CUT_CuttingHelper
 	#region Methods
 
 	#region Original Methods
-    public static CUT_MeshTriangle GetTriangle(int _indexA, int _indexB, int _indexC, int _subMeshIndex, Mesh _originalMesh)
+    private static CUT_MeshTriangle GetTriangle(int _indexA, int _indexB, int _indexC, int _subMeshIndex, Mesh _originalMesh)
     {
         Vector3[] _vertices = new Vector3[3] { _originalMesh.vertices[_indexA], _originalMesh.vertices[_indexB], _originalMesh.vertices[_indexC] };
         Vector3[] _normals = new Vector3[3] { _originalMesh.normals[_indexA], _originalMesh.normals[_indexB], _originalMesh.normals[_indexC] };
@@ -46,7 +43,7 @@ public static class CUT_CuttingHelper
         return new CUT_MeshTriangle(_vertices, _normals, _uvs, _subMeshIndex);
     }
 
-    public static void CutTriangle(Plane _cuttingPlane, CUT_MeshTriangle _triangle, bool _triangleALeftSide, bool _triangleBLeftSide, bool _triangleCLeftSide, CUT_GeneratedMesh _leftSide, CUT_GeneratedMesh _rightSide, List<Vector3> _addedVertices)
+    private static void CutTriangle(Plane _cuttingPlane, CUT_MeshTriangle _triangle, bool _triangleALeftSide, bool _triangleBLeftSide, bool _triangleCLeftSide, CUT_GeneratedMesh _leftSide, CUT_GeneratedMesh _rightSide, List<Vector3> _addedVertices)
     {
         List<bool> _leftSidesBool = new List<bool>();
         _leftSidesBool.Add(_triangleALeftSide);
@@ -201,7 +198,7 @@ public static class CUT_CuttingHelper
         _triangle.UVs[2] = _invertedUv;
     }
 
-    public static void FillCut(List<Vector3> _addedVertices, Plane _cuttingPlane, CUT_GeneratedMesh _leftMesh, CUT_GeneratedMesh _rightMesh)
+    private static void FillCut(List<Vector3> _addedVertices, Plane _cuttingPlane, CUT_GeneratedMesh _leftMesh, CUT_GeneratedMesh _rightMesh)
     {
         List<Vector3> _vertices = new List<Vector3>();
         List<Vector3> _polygone = new List<Vector3>();
@@ -292,6 +289,92 @@ public static class CUT_CuttingHelper
             }
             _rightMesh.AddTriangle(_currentTriangle);
         }
+    }
+
+    public static bool PrepareCut(Vector3 _normal, Vector3 _contactPoint, Transform _cutTransform, Mesh _originalMesh, out CUT_GeneratedMesh _keptMesh, out CUT_GeneratedMesh _removedMesh)
+    {
+        _keptMesh = null;
+        _removedMesh = null;
+        Plane _cuttingPlane = new Plane(_cutTransform.InverseTransformDirection(_normal.normalized), _cutTransform.InverseTransformPoint(_contactPoint));
+        Debug.DrawLine(Vector3.zero, _cuttingPlane.normal, Color.blue, 200);
+
+        List<Vector3> _addedVertices = new List<Vector3>();
+
+        CUT_GeneratedMesh _leftMesh = new CUT_GeneratedMesh();
+        CUT_GeneratedMesh _rightMesh = new CUT_GeneratedMesh();
+        int[] _submeshIndices;
+        int _triangleIndexA, _triangleIndexB, _triangleIndexC;
+        bool _triangleALeftSide, _triangleBLeftSide, _triangleCLeftSide;
+        for (int i = 0; i < _originalMesh.subMeshCount; i++)
+        {
+            _submeshIndices = _originalMesh.GetTriangles(i);
+
+            for (int j = 0; j < _submeshIndices.Length; j += 3)
+            {
+                _triangleIndexA = _submeshIndices[j];
+                _triangleIndexB = _submeshIndices[j + 1];
+                _triangleIndexC = _submeshIndices[j + 2];
+
+                CUT_MeshTriangle _currentTriangle = CUT_CuttingHelper.GetTriangle(_triangleIndexA, _triangleIndexB, _triangleIndexC, i, _originalMesh);
+                _triangleALeftSide = _cuttingPlane.GetSide(_originalMesh.vertices[_triangleIndexA]);
+                _triangleBLeftSide = _cuttingPlane.GetSide(_originalMesh.vertices[_triangleIndexB]);
+                _triangleCLeftSide = _cuttingPlane.GetSide(_originalMesh.vertices[_triangleIndexC]);
+
+                if (_triangleALeftSide && _triangleBLeftSide && _triangleCLeftSide)
+                {
+                    _leftMesh.AddTriangle(_currentTriangle);
+                }
+                else if (!_triangleALeftSide && !_triangleBLeftSide && !_triangleCLeftSide)
+                {
+                    _rightMesh.AddTriangle(_currentTriangle);
+                }
+                else
+                {
+                    CUT_CuttingHelper.CutTriangle(_cuttingPlane, _currentTriangle, _triangleALeftSide, _triangleBLeftSide, _triangleCLeftSide, _leftMesh, _rightMesh, _addedVertices);
+                }
+            }
+        }
+
+        CUT_CuttingHelper.FillCut(_addedVertices, _cuttingPlane, _leftMesh, _rightMesh);
+        _keptMesh = _leftMesh;
+        _removedMesh = _rightMesh;
+        return true; 
+    }
+
+    public static void ApplyCut(MeshRenderer _originalMesh, CUT_GeneratedMesh _keptMesh, CUT_GeneratedMesh _removedMesh)
+    {
+        if (_keptMesh == null || _removedMesh == null)
+        {
+            Debug.Log("NULL"); 
+            return;
+        }
+        //SET THE NEW MESH
+        Mesh _newMesh = new Mesh();
+        _newMesh.SetVertices(_keptMesh.Vertices);
+        _newMesh.SetNormals(_keptMesh.Normals);
+        _newMesh.SetUVs(0, _keptMesh.UVs);
+        for (int i = 0; i < _keptMesh.SubmeshIndices.Count; i++)
+        {
+            _newMesh.SetTriangles(_keptMesh.SubmeshIndices[i], i);
+        }
+        _originalMesh.gameObject.GetComponent<MeshFilter>().mesh = _newMesh;
+        return; 
+        //INSTANTIATE A PARTICLE TO MAKE THE OTHER PART FALL
+        _newMesh = new Mesh();
+        _newMesh.SetVertices(_removedMesh.Vertices);
+        _newMesh.SetNormals(_removedMesh.Normals);
+        _newMesh.SetUVs(0, _removedMesh.UVs);
+        for (int i = 0; i < _removedMesh.SubmeshIndices.Count; i++)
+        {
+            _newMesh.SetTriangles(_removedMesh.SubmeshIndices[i], i);
+        }
+        GameObject _particle = Resources.Load("CuttingParticleSystem") as GameObject;
+        ParticleSystemRenderer _renderer = _particle.GetComponent<ParticleSystemRenderer>();
+        Mesh[] _particleMeshes = new Mesh[] { _newMesh };
+        _renderer.SetMeshes(_particleMeshes);
+        _renderer.material = _originalMesh.material;
+        Vector3 _pos = _originalMesh.gameObject.transform.position;
+        Object.Instantiate(_particle, _pos, Quaternion.identity);
     }
     #endregion
 
