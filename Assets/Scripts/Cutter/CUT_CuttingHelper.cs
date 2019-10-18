@@ -296,7 +296,6 @@ public static class CUT_CuttingHelper
         _keptMesh = null;
         _removedMesh = null;
         Plane _cuttingPlane = new Plane(_cutTransform.InverseTransformDirection(_normal.normalized), _cutTransform.InverseTransformPoint(_contactPoint));
-        Debug.DrawLine(Vector3.zero, _cuttingPlane.normal, Color.blue, 200);
 
         List<Vector3> _addedVertices = new List<Vector3>();
 
@@ -308,18 +307,18 @@ public static class CUT_CuttingHelper
         for (int i = 0; i < _originalMesh.subMeshCount; i++)
         {
             _submeshIndices = _originalMesh.GetTriangles(i);
-
             for (int j = 0; j < _submeshIndices.Length; j += 3)
             {
                 _triangleIndexA = _submeshIndices[j];
                 _triangleIndexB = _submeshIndices[j + 1];
                 _triangleIndexC = _submeshIndices[j + 2];
 
-                CUT_MeshTriangle _currentTriangle = CUT_CuttingHelper.GetTriangle(_triangleIndexA, _triangleIndexB, _triangleIndexC, i, _originalMesh);
+                CUT_MeshTriangle _currentTriangle = GetTriangle(_triangleIndexA, _triangleIndexB, _triangleIndexC, i, _originalMesh);
                 _triangleALeftSide = _cuttingPlane.GetSide(_originalMesh.vertices[_triangleIndexA]);
                 _triangleBLeftSide = _cuttingPlane.GetSide(_originalMesh.vertices[_triangleIndexB]);
                 _triangleCLeftSide = _cuttingPlane.GetSide(_originalMesh.vertices[_triangleIndexC]);
 
+                
                 if (_triangleALeftSide && _triangleBLeftSide && _triangleCLeftSide)
                 {
                     _leftMesh.AddTriangle(_currentTriangle);
@@ -330,12 +329,12 @@ public static class CUT_CuttingHelper
                 }
                 else
                 {
-                    CUT_CuttingHelper.CutTriangle(_cuttingPlane, _currentTriangle, _triangleALeftSide, _triangleBLeftSide, _triangleCLeftSide, _leftMesh, _rightMesh, _addedVertices);
+                    CutTriangle(_cuttingPlane, _currentTriangle, _triangleALeftSide, _triangleBLeftSide, _triangleCLeftSide, _leftMesh, _rightMesh, _addedVertices);
                 }
             }
         }
 
-        CUT_CuttingHelper.FillCut(_addedVertices, _cuttingPlane, _leftMesh, _rightMesh);
+        //FillCut(_addedVertices, _cuttingPlane, _leftMesh, _rightMesh);
         _keptMesh = _leftMesh;
         _removedMesh = _rightMesh;
         return true; 
